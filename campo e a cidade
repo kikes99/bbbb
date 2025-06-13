@@ -1,0 +1,401 @@
+let player;
+
+let obstacles = [];
+
+let score = 0;
+
+let obstaclesAvoided = 0;
+
+let gameOver = false;
+
+let gameWin = false;
+
+let roadSpeed = 5;
+
+let maxSpeed = 50;
+
+let minSpeed = 1;
+
+let holdingW = false;
+
+let holdingS = false;
+
+let holdingCtrl = false;
+
+let lastScoreTime = 0;
+
+let factoryGateY = -200;
+
+let obstacleSpawnRate = 60;
+
+let obstacleTimer = 0;
+
+function setup() {
+
+  createCanvas(400, 600);
+
+  player = new Player();
+
+}
+
+function draw() {
+
+  background(60);
+
+  drawRoad();
+
+  if (gameWin) drawFactoryGate();
+
+  if (!gameOver && !gameWin) {
+
+    player.update();
+
+    player.show();
+
+    obstacleTimer++;
+
+    if (obstacleTimer >= obstacleSpawnRate) {
+
+      obstacles.push(new Obstacle());
+
+      obstacleTimer = 0;
+
+    }
+
+    for (let i = obstacles.length - 1; i >= 0; i--) {
+
+      obstacles[i].update();
+
+      obstacles[i].show();
+
+      if (obstacles[i].hits(player)) {
+
+        gameOver = true;
+
+      }
+
+      if (obstacles[i].offscreen()) {
+
+        obstacles.splice(i, 1);
+
+        obstaclesAvoided++;
+
+      }
+
+    }
+
+    if (holdingW && !holdingCtrl) roadSpeed = min(roadSpeed + 0.1, maxSpeed);
+
+    if (holdingS && !holdingCtrl) roadSpeed = max(roadSpeed - 0.1, minSpeed);
+
+    if (holdingCtrl) roadSpeed = max(roadSpeed - 0.5, minSpeed);
+
+    let now = millis();
+
+    let interval = map(roadSpeed, 5, 50, 2000, 300);
+
+    if (now - lastScoreTime > interval && score < 200) {
+
+      let points = floor(map(roadSpeed, 5, 50, 1, 10));
+
+      score += points;
+
+      lastScoreTime = now;
+
+      if (score >= 200) {
+
+        score = 200;
+
+        gameWin = true;
+
+      }
+
+    }
+
+    drawStats();
+
+  } else if (gameOver) {
+
+    fill(0, 150);
+
+    rect(0, 0, width, height);
+
+    fill(255);
+
+    textAlign(CENTER);
+
+    textSize(40);
+
+    text("Game Over", width / 2, height / 2 - 20);
+
+    textSize(20);
+
+    text("Pressione R para jogar de novo", width / 2, height / 2 + 20);
+
+  } else if (gameWin) {
+
+    factoryGateY += 1;
+
+    fill(0, 180);
+
+    rect(0, 0, width, height);
+
+    fill(0, 255, 0);
+
+    textAlign(CENTER);
+
+    textSize(24);
+
+    text("Você chegou na indústria da cidade!", width / 2, height / 2 - 30);
+
+    text("Pontuação final: 200", width / 2, height / 2);
+
+    text("Pressione R para jogar de novo", width / 2, height / 2 + 30);
+
+    player.show();
+
+  }
+
+}
+
+function keyPressed() {
+
+  if (!gameOver && !gameWin) {
+
+    if (key === 'a' || key === 'A') player.moveX = -1;
+
+    if (key === 'd' || key === 'D') player.moveX = 1;
+
+    if (key === 'w' || key === 'W') holdingW = true;
+
+    if (key === 's' || key === 'S') holdingS = true;
+
+    if (keyCode === CONTROL) holdingCtrl = true;
+
+  }
+
+  if ((gameOver || gameWin) && (key === 'r' || key === 'R')) resetGame();
+
+}
+
+function keyReleased() {
+
+  if (key === 'a' || key === 'A' || key === 'd' || key === 'D') player.moveX = 0;
+
+  if (key === 'w' || key === 'W') holdingW = false;
+
+  if (key === 's' || key === 'S') holdingS = false;
+
+  if (keyCode === CONTROL) holdingCtrl = false;
+
+}
+
+function drawRoad() {
+
+  stroke(255);
+
+  strokeWeight(4);
+
+  for (let i = 0; i < height; i += 40) {
+
+    line(width / 2, i + (frameCount * roadSpeed % 40), width / 2, i + 20 + (frameCount * roadSpeed % 40));
+
+  }
+
+}
+
+function drawFactoryGate() {
+
+  fill(100);
+
+  rect(80, factoryGateY, 240, 150, 10);
+
+  fill(50);
+
+  rect(150, factoryGateY + 100, 100, 50);
+
+  fill(200);
+
+  rect(100, factoryGateY + 20, 30, 30);
+
+  rect(270, factoryGateY + 20, 30, 30);
+
+}
+
+function drawStats() {
+
+  fill(255);
+
+  textSize(16);
+
+  textAlign(LEFT);
+
+  text("Pontos: " + score, width - 140, 30);
+
+  text("Velocidade: " + nf(roadSpeed, 2, 1) + " km/h", width - 140, 50);
+
+  text("Desviados: " + obstaclesAvoided, width - 140, 70);
+
+}
+
+function resetGame() {
+
+  obstacles = [];
+
+  score = 0;
+
+  obstaclesAvoided = 0;
+
+  player = new Player();
+
+  gameOver = false;
+
+  gameWin = false;
+
+  roadSpeed = 5;
+
+  holdingW = false;
+
+  holdingS = false;
+
+  holdingCtrl = false;
+
+  lastScoreTime = 0;
+
+  factoryGateY = -200;
+
+  obstacleTimer = 0;
+
+}
+
+class Player {
+
+  constructor() {
+
+    this.w = 50;
+
+    this.h = 100;
+
+    this.x = width / 2 - this.w / 2;
+
+    this.y = height - this.h - 10;
+
+    this.speedX = 0;
+
+    this.moveX = 0;
+
+  }
+
+  update() {
+
+    this.speedX = lerp(this.speedX, this.moveX * 7, 0.1);
+
+    this.x += this.speedX;
+
+    this.x = constrain(this.x, 0, width - this.w);
+
+  }
+
+  show() {
+
+    fill(120);
+
+    rect(this.x, this.y, this.w, this.h, 5);
+
+    fill(60);
+
+    rect(this.x, this.y, this.w, this.h * 0.25, 5);
+
+    fill(180);
+
+    rect(this.x, this.y + this.h * 0.25, this.w, this.h * 0.75, 5);
+
+  }
+
+}
+
+class Obstacle {
+
+  constructor() {
+
+    this.w = 40;
+
+    this.h = 80;
+
+    this.x = floor(random(0, width / this.w)) * this.w;
+
+    this.y = -this.h;
+
+    const colorOptions = [
+
+      [255, 0, 0],     // vermelho
+
+      [0, 0, 255],     // azul
+
+      [0, 128, 0],     // verde
+
+      [128, 0, 128],   // roxo
+
+      [255, 165, 0],   // laranja
+
+      [0, 255, 255],   // ciano
+
+      [255, 255, 0]    // amarelo
+
+    ];
+
+    this.color = random(colorOptions);
+
+    this.dx = random([-1, 0, 1]) * 0.5;
+
+  }
+
+  update() {
+
+    this.y += roadSpeed;
+
+    this.x += this.dx;
+
+    this.x = constrain(this.x, 0, width - this.w);
+
+  }
+
+  show() {
+
+    fill(this.color);
+
+    rect(this.x, this.y, this.w, this.h, 10);
+
+    fill(30);
+
+    rect(this.x, this.y, this.w, this.h * 0.25, 10);
+
+    fill(220);
+
+    rect(this.x, this.y + this.h * 0.25, this.w, this.h * 0.75, 10);
+
+  }
+
+  offscreen() {
+
+    return this.y > height;
+
+  }
+
+  hits(player) {
+
+    return !(
+
+      player.x + player.w < this.x ||
+
+      player.x > this.x + this.w ||
+
+      player.y + player.h < this.y ||
+
+      player.y > this.y + this.h
+
+    );
+
+  }
+
+}
